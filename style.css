@@ -957,3 +957,16 @@ a {
   }
 
 }
+
+/* SUBSTITUI A ILUSTRAÇÃO GRANDE PELA IMAGEM ENVIADA */
+.art-frame .justice-art {
+  background-image: url("./07d581bec72d6635c0b2ee8a860580ec.jpg") !important;
+  background-repeat: no-repeat !important;
+  background-position: center !important;
+  background-size: contain !important;
+  opacity: 1 !important;
+}
+
+.art-frame .justice-art * {
+  opacity: 0 !important;
+}
