@@ -30,7 +30,7 @@ small{display:block;color:#aaa;text-align:center;margin-top:18px;line-height:1.5
 <input id="nome" type="text" maxlength="100" required minlength="2" placeholder="Digite seu nome">
 
 <label for="data">Escolha a data</label>
-<input id="data" type="date" required onchange="document.getElementById('mensagem').textContent='Data selecionada: '+this.value">
+<input id="data" type="date" required onchange="carregarHorarios()">
 
 <label for="horario">Horários disponíveis</label>
 <select id="horario" required>
