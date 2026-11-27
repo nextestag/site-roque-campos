@@ -185,3 +185,29 @@ a{color:inherit;text-decoration:none}
 .main-nav a:hover {
     border-color: #e0bd76 !important;
 }
+
+/* ==========================================
+   MENU PRINCIPAL - BORDAS DOURADAS
+   COMPUTADOR E CELULAR
+========================================== */
+
+#main-nav a,
+#main-nav a.nav-cta {
+    border: 1px solid #c9a45c !important;
+    border-radius: 6px !important;
+    box-sizing: border-box !important;
+    outline: none !important;
+}
+
+/* Efeito ao passar o mouse */
+#main-nav a:hover {
+    border-color: #e4c47e !important;
+}
+
+/* Garante a borda no menu mobile aberto */
+@media screen and (max-width: 900px) {
+    #main-nav a,
+    #main-nav a.nav-cta {
+        border: 1px solid #c9a45c !important;
+    }
+}
