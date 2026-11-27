@@ -30,10 +30,48 @@ a{color:inherit;text-decoration:none}
 .brand-copy{display:flex;flex-direction:column;line-height:1.2;letter-spacing:.12em}
 .brand-copy strong{font-size:13px;font-weight:700}
 .brand-copy small{font-size:9px;color:var(--gold);letter-spacing:.18em;margin-top:5px}
-.main-nav{display:flex;align-items:center;gap:30px;font-size:12px;letter-spacing:.04em;color:#e4e1da}
-.main-nav a:not(.nav-cta):hover{color:var(--gold-light)}
-.nav-cta{border:1px solid var(--gold);padding:10px 17px;color:var(--gold-light);transition:.2s}
-.nav-cta:hover{background:var(--gold);color:#111}
+
+/* MENU PRINCIPAL */
+.main-nav{
+display:flex;
+align-items:center;
+gap:9px;
+font-size:11px;
+font-weight:500;
+letter-spacing:.035em;
+color:#e4e1da
+}
+
+/* BORDAS DOURADAS SUAVES EM TODOS OS LINKS */
+.main-nav a{
+display:block;
+border:1px solid rgba(197,166,109,.48);
+border-radius:5px;
+padding:9px 11px;
+box-sizing:border-box;
+text-align:center;
+transition:border-color .25s ease,background .25s ease,color .25s ease;
+}
+
+.main-nav a:not(.nav-cta):hover{
+color:var(--gold-light);
+border-color:rgba(223,201,157,.8);
+background:rgba(197,166,109,.06);
+}
+
+.nav-cta{
+border:1px solid rgba(197,166,109,.48);
+padding:9px 11px;
+color:var(--gold-light);
+transition:border-color .25s ease,background .25s ease,color .25s ease;
+}
+
+.nav-cta:hover{
+background:rgba(197,166,109,.12);
+border-color:var(--gold-light);
+color:var(--gold-light);
+}
+
 .menu-toggle{display:none;background:none;border:0;padding:8px}
 .menu-toggle span{display:block;width:25px;height:2px;background:var(--gold);margin:5px}
 
@@ -122,7 +160,7 @@ a{color:inherit;text-decoration:none}
 .whatsapp-float svg{width:26px;height:26px;fill:#fff}
 
 @media(max-width:850px){
-.main-nav{gap:17px}
+.main-nav{gap:8px}
 .hero-grid{gap:25px}
 .hero h1{font-size:50px}
 .intro-grid,.contact-grid{gap:50px}
@@ -134,10 +172,38 @@ a{color:inherit;text-decoration:none}
 .site-header{height:72px}
 .brand-mark{width:38px;height:38px}
 .menu-toggle{display:block;cursor:pointer}
-.main-nav{display:none;position:absolute;top:72px;left:0;right:0;background:#111315;padding:18px 24px 25px;flex-direction:column;align-items:stretch;gap:0;border-top:1px solid #303234}
+
+.main-nav{
+display:none;
+position:absolute;
+top:72px;
+left:0;
+right:0;
+background:#111315;
+padding:18px 24px 25px;
+flex-direction:column;
+align-items:stretch;
+gap:9px;
+border-top:1px solid #303234
+}
+
 .main-nav.open{display:flex}
-.main-nav a{padding:13px 4px;border-bottom:1px solid #292c2e}
-.main-nav .nav-cta{text-align:center;margin-top:13px;border:1px solid var(--gold)}
+
+.main-nav a,
+.main-nav .nav-cta{
+width:100%;
+padding:12px 10px;
+margin:0;
+border:1px solid rgba(197,166,109,.48);
+border-radius:5px;
+text-align:center;
+}
+
+.main-nav a:hover{
+border-color:rgba(223,201,157,.8);
+background:rgba(197,166,109,.06);
+}
+
 .hero{padding:65px 0 25px}
 .hero-grid{grid-template-columns:1fr;gap:25px}
 .hero h1{font-size:clamp(40px,11vw,55px)}
@@ -168,46 +234,4 @@ a{color:inherit;text-decoration:none}
 .practice-card{min-height:0}
 .hero-actions{gap:17px;flex-wrap:wrap}
 .button{padding:14px 16px}
-}
-
-
-/* =========================================
-   BORDA DOURADA EM TODOS OS BOTÕES DO MENU
-   COMPUTADOR E CELULAR
-========================================= */
-
-.main-nav a {
-    border: 1px solid #c9a45c !important;
-    border-radius: 6px !important;
-    box-sizing: border-box;
-}
-
-.main-nav a:hover {
-    border-color: #e0bd76 !important;
-}
-
-/* ==========================================
-   MENU PRINCIPAL - BORDAS DOURADAS
-   COMPUTADOR E CELULAR
-========================================== */
-
-#main-nav a,
-#main-nav a.nav-cta {
-    border: 1px solid #c9a45c !important;
-    border-radius: 6px !important;
-    box-sizing: border-box !important;
-    outline: none !important;
-}
-
-/* Efeito ao passar o mouse */
-#main-nav a:hover {
-    border-color: #e4c47e !important;
-}
-
-/* Garante a borda no menu mobile aberto */
-@media screen and (max-width: 900px) {
-    #main-nav a,
-    #main-nav a.nav-cta {
-        border: 1px solid #c9a45c !important;
-    }
 }
