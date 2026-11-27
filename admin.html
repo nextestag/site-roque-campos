@@ -34,14 +34,16 @@ button:disabled{opacity:.5;cursor:wait}
 <section id="login">
 <h2>Acesso do administrador</h2>
 
-<form id="formLogin" onsubmit="document.getElementById('mensagem').textContent='O formulário foi enviado!';">
-<label>E-mail</label>
+<form id="formLogin" novalidate>
+
+<label for="email">E-mail</label>
 <input id="email" type="email" required autocomplete="username">
 
-<label>Senha</label>
+<label for="senha">Senha</label>
 <input id="senha" type="password" required autocomplete="current-password">
 
-<button id="entrar" type="submit" onclick="document.getElementById('mensagem').textContent='O botão foi acionado!';">Entrar</button>
+<button id="entrar" type="submit">Entrar</button>
+
 </form>
 </section>
 
@@ -51,10 +53,10 @@ button:disabled{opacity:.5;cursor:wait}
 
 <h2>Agendamentos</h2>
 
-<label>Consultar a partir de:</label>
+<label for="inicio">Consultar a partir de:</label>
 <input id="inicio" type="date">
 
-<label>Consultar até:</label>
+<label for="fim">Consultar até:</label>
 <input id="fim" type="date">
 
 <button id="atualizar" type="button">Atualizar agenda</button>
@@ -68,6 +70,10 @@ button:disabled{opacity:.5;cursor:wait}
 </main>
 
 <script>
+(() => {
+
+"use strict";
+
 const SUPABASE_URL = "https://lnavvnmuqlhetnovwyxr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ncPMZ-VLgvvt7djIA0tb-Q_r_3A6Isz";
 
@@ -78,20 +84,20 @@ const lista = document.getElementById("lista");
 const formulario = document.getElementById("formLogin");
 const botaoEntrar = document.getElementById("entrar");
 
-let supabase;
+const inicioInput = document.getElementById("inicio");
+const fimInput = document.getElementById("fim");
 
-function avisar(texto){
+let supabase = null;
+
+function avisar(texto) {
   mensagem.textContent = texto;
 }
 
-function hoje(){
+function hoje() {
   const d = new Date();
 
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
-
-const inicioInput = document.getElementById("inicio");
-const fimInput = document.getElementById("fim");
 
 inicioInput.value = hoje();
 
@@ -101,45 +107,41 @@ limite.setDate(limite.getDate()+30);
 fimInput.value =
   `${limite.getFullYear()}-${String(limite.getMonth()+1).padStart(2,"0")}-${String(limite.getDate()).padStart(2,"0")}`;
 
-function mostrarLogin(){
+function mostrarLogin() {
   login.style.display = "block";
   painel.style.display = "none";
 }
 
-function mostrarPainel(){
+function mostrarPainel() {
   login.style.display = "none";
   painel.style.display = "block";
 }
 
-async function verificarAdministrador(){
+async function verificarAdministrador() {
 
   try {
 
     const {data: sessaoData, error: sessaoErro} =
       await supabase.auth.getUser();
 
-    if(sessaoErro){
-      throw sessaoErro;
-    }
+    if(sessaoErro) throw sessaoErro;
 
     const user = sessaoData.user;
 
-    if(!user){
+    if(!user) {
       mostrarLogin();
       return;
     }
 
-    const {data,error} = await supabase
+    const {data, error} = await supabase
       .from("admin_users")
       .select("user_id")
-      .eq("user_id",user.id)
+      .eq("user_id", user.id)
       .maybeSingle();
 
-    if(error){
-      throw error;
-    }
+    if(error) throw error;
 
-    if(!data){
+    if(!data) {
       await supabase.auth.signOut();
       mostrarLogin();
       avisar("Esta conta não está cadastrada como administradora.");
@@ -153,43 +155,46 @@ async function verificarAdministrador(){
 
   } catch(error) {
 
-    console.error("Erro ao verificar administrador:",error);
+    console.error("Erro ao verificar administrador:", error);
 
     mostrarLogin();
-
     avisar("Erro ao verificar acesso: " + error.message);
 
   }
 }
 
-formulario.addEventListener("submit",async(event)=>{
+formulario.addEventListener("submit", async function(event) {
 
   event.preventDefault();
 
-  if(!supabase){
-    avisar("Não foi possível conectar ao Supabase. Atualize a página.");
+  avisar("O formulário foi enviado. Verificando acesso...");
+
+  if(!supabase) {
+    avisar("Supabase não conectado. Atualize a página.");
     return;
   }
 
   const email = document.getElementById("email").value.trim();
   const senha = document.getElementById("senha").value;
 
+  if(!email || !senha) {
+    avisar("Preencha o e-mail e a senha.");
+    return;
+  }
+
   botaoEntrar.disabled = true;
   botaoEntrar.textContent = "Verificando...";
-  avisar("Verificando acesso...");
 
   try {
 
-    const {data,error} = await supabase.auth.signInWithPassword({
-      email:email,
-      password:senha
+    const {data, error} = await supabase.auth.signInWithPassword({
+      email: email,
+      password: senha
     });
 
-    if(error){
-      throw error;
-    }
+    if(error) throw error;
 
-    if(!data.user){
+    if(!data.user) {
       throw new Error("O Supabase não retornou um usuário.");
     }
 
@@ -197,7 +202,7 @@ formulario.addEventListener("submit",async(event)=>{
 
   } catch(error) {
 
-    console.error("Erro no login:",error);
+    console.error("Erro no login:", error);
 
     avisar("Falha no login: " + error.message);
 
@@ -210,45 +215,43 @@ formulario.addEventListener("submit",async(event)=>{
 
 });
 
-async function carregarAgendamentos(){
+async function carregarAgendamentos() {
 
   lista.textContent = "Carregando agendamentos...";
 
   const inicio = inicioInput.value;
   const fim = fimInput.value;
 
-  if(!inicio || !fim || inicio > fim){
+  if(!inicio || !fim || inicio > fim) {
     lista.textContent = "Informe um período válido.";
     return;
   }
 
   try {
 
-    const {data,error} = await supabase
+    const {data, error} = await supabase
       .from("appointments")
       .select("id,customer_name,appointment_date,appointment_time,status")
-      .gte("appointment_date",inicio)
-      .lte("appointment_date",fim)
-      .order("appointment_date",{ascending:true})
-      .order("appointment_time",{ascending:true});
+      .gte("appointment_date", inicio)
+      .lte("appointment_date", fim)
+      .order("appointment_date", {ascending:true})
+      .order("appointment_time", {ascending:true});
 
-    if(error){
-      throw error;
-    }
+    if(error) throw error;
 
     lista.innerHTML = "";
 
-    if(!data || data.length === 0){
+    if(!data || data.length === 0) {
       lista.textContent = "Nenhum agendamento encontrado nesse período.";
       return;
     }
 
-    data.forEach(item=>{
+    data.forEach(item => {
 
       const card = document.createElement("div");
       card.className = "item";
 
-      const [ano,mes,dia] = item.appointment_date.split("-");
+      const [ano, mes, dia] = item.appointment_date.split("-");
       const dataFormatada = `${dia}/${mes}/${ano}`;
       const hora = String(item.appointment_time).slice(0,5);
 
@@ -265,13 +268,13 @@ async function carregarAgendamentos(){
       const seletor = document.createElement("select");
 
       const statusNomes = {
-        pending:"Pendente",
-        confirmed:"Confirmado",
-        completed:"Concluído",
-        cancelled:"Cancelado"
+        pending: "Pendente",
+        confirmed: "Confirmado",
+        completed: "Concluído",
+        cancelled: "Cancelado"
       };
 
-      Object.entries(statusNomes).forEach(([valor,nome])=>{
+      Object.entries(statusNomes).forEach(([valor, nome]) => {
         const op = document.createElement("option");
         op.value = valor;
         op.textContent = nome;
@@ -284,7 +287,7 @@ async function carregarAgendamentos(){
       salvar.type = "button";
       salvar.textContent = "Salvar status";
 
-      salvar.addEventListener("click",async()=>{
+      salvar.addEventListener("click", async () => {
 
         salvar.disabled = true;
         salvar.textContent = "Salvando...";
@@ -293,12 +296,10 @@ async function carregarAgendamentos(){
 
           const {error} = await supabase
             .from("appointments")
-            .update({status:seletor.value})
-            .eq("id",item.id);
+            .update({status: seletor.value})
+            .eq("id", item.id);
 
-          if(error){
-            throw error;
-          }
+          if(error) throw error;
 
           avisar("Status atualizado com sucesso.");
 
@@ -306,7 +307,7 @@ async function carregarAgendamentos(){
 
         } catch(error) {
 
-          console.error("Erro ao atualizar:",error);
+          console.error("Erro ao atualizar:", error);
           avisar("Erro ao atualizar status: " + error.message);
 
         } finally {
@@ -318,49 +319,46 @@ async function carregarAgendamentos(){
 
       });
 
-      card.append(titulo,info,status,seletor,salvar);
+      card.append(titulo, info, status, seletor, salvar);
       lista.appendChild(card);
 
     });
 
   } catch(error) {
 
-    console.error("Erro ao carregar agenda:",error);
-
+    console.error("Erro ao carregar agenda:", error);
     lista.textContent = "Erro ao carregar: " + error.message;
 
   }
 }
 
 document.getElementById("atualizar")
-.addEventListener("click",carregarAgendamentos);
+  .addEventListener("click", carregarAgendamentos);
 
 document.getElementById("sair")
-.addEventListener("click",async()=>{
+  .addEventListener("click", async () => {
 
-  try {
+    try {
 
-    const {error} = await supabase.auth.signOut();
+      const {error} = await supabase.auth.signOut();
 
-    if(error){
-      throw error;
+      if(error) throw error;
+
+      mostrarLogin();
+      lista.innerHTML = "";
+      avisar("Você saiu do painel.");
+
+    } catch(error) {
+
+      avisar("Erro ao sair: " + error.message);
+
     }
 
-    mostrarLogin();
-    lista.innerHTML = "";
-    avisar("Você saiu do painel.");
-
-  } catch(error) {
-
-    avisar("Erro ao sair: " + error.message);
-
-  }
-
-});
+  });
 
 try {
 
-  if(!window.supabase || !window.supabase.createClient){
+  if(!window.supabase || !window.supabase.createClient) {
     throw new Error("Biblioteca do Supabase não carregada.");
   }
 
@@ -369,14 +367,18 @@ try {
     SUPABASE_KEY
   );
 
+  avisar("Sistema iniciado. Faça seu login.");
+
   verificarAdministrador();
 
 } catch(error) {
 
-  console.error("Erro de inicialização:",error);
+  console.error("Erro de inicialização:", error);
   avisar("Erro ao iniciar o sistema: " + error.message);
 
 }
+
+})();
 </script>
 
 </body>
