@@ -5,7 +5,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Painel administrativo | Dr. Roque Campos</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#171717;color:#eee;font-family:Arial,sans-serif;padding:20px}
@@ -15,198 +17,367 @@ section{background:#222;padding:22px;border:1px solid #655638;border-radius:10px
 input,button,select{padding:12px;border-radius:6px;font-size:15px}
 input,select{background:#171717;color:white;border:1px solid #655638;width:100%;margin:7px 0 15px}
 button{background:#b99a5b;color:#171717;border:0;font-weight:bold;cursor:pointer;margin:5px}
+button:disabled{opacity:.5;cursor:wait}
 .item{background:#292929;border:1px solid #51452e;border-radius:8px;padding:15px;margin:12px 0}
 .item p{line-height:1.5;margin:6px 0}
 .status{color:#e5c77e;font-weight:bold}
 #painel{display:none}
-#mensagem{color:#e5c77e;margin:12px 0}
+#mensagem{color:#e5c77e;margin:12px 0;line-height:1.5;overflow-wrap:anywhere}
 </style>
 </head>
+
 <body>
 <main>
+
 <h1>Painel administrativo</h1>
+
 <section id="login">
 <h2>Acesso do administrador</h2>
+
 <form id="formLogin">
 <label>E-mail</label>
-<input id="email" type="email" required>
+<input id="email" type="email" required autocomplete="username">
+
 <label>Senha</label>
-<input id="senha" type="password" required>
-<button type="submit">Entrar</button>
+<input id="senha" type="password" required autocomplete="current-password">
+
+<button id="entrar" type="submit">Entrar</button>
 </form>
 </section>
 
 <section id="painel">
-<button id="sair">Sair da conta</button>
+
+<button id="sair" type="button">Sair da conta</button>
+
 <h2>Agendamentos</h2>
+
 <label>Consultar a partir de:</label>
 <input id="inicio" type="date">
+
 <label>Consultar até:</label>
 <input id="fim" type="date">
-<button id="atualizar">Atualizar agenda</button>
+
+<button id="atualizar" type="button">Atualizar agenda</button>
+
 <div id="lista"></div>
+
 </section>
 
-<div id="mensagem"></div>
+<div id="mensagem" role="status"></div>
+
 </main>
 
 <script>
 const SUPABASE_URL = "https://lnavvnmuqlhetnovwyxr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ncPMZ-VLgvvt7djIA0tb-Q_r_3A6Isz";
-const supabase = window.supabase.createClient(SUPABASE_URL,SUPABASE_KEY);
 
 const login = document.getElementById("login");
 const painel = document.getElementById("painel");
 const mensagem = document.getElementById("mensagem");
 const lista = document.getElementById("lista");
+const formulario = document.getElementById("formLogin");
+const botaoEntrar = document.getElementById("entrar");
+
+let supabase;
+
+function avisar(texto){
+  mensagem.textContent = texto;
+}
 
 function hoje(){
   const d = new Date();
+
   return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`;
 }
 
-document.getElementById("inicio").value = hoje();
+const inicioInput = document.getElementById("inicio");
+const fimInput = document.getElementById("fim");
+
+inicioInput.value = hoje();
 
 const limite = new Date();
 limite.setDate(limite.getDate()+30);
-document.getElementById("fim").value =
+
+fimInput.value =
   `${limite.getFullYear()}-${String(limite.getMonth()+1).padStart(2,"0")}-${String(limite.getDate()).padStart(2,"0")}`;
 
-async function verificarAdministrador(){
-  const {data:{user}} = await supabase.auth.getUser();
-
-  if(!user){
-    login.style.display = "block";
-    painel.style.display = "none";
-    return;
-  }
-
-  const {data,error} = await supabase
-    .from("admin_users")
-    .select("user_id")
-    .eq("user_id",user.id)
-    .maybeSingle();
-
-  if(error || !data){
-    await supabase.auth.signOut();
-    mensagem.textContent = "Esta conta não tem autorização de administrador.";
-    return;
-  }
-
-  login.style.display = "none";
-  painel.style.display = "block";
-  await carregarAgendamentos();
+function mostrarLogin(){
+  login.style.display = "block";
+  painel.style.display = "none";
 }
 
-document.getElementById("formLogin").addEventListener("submit",async(e)=>{
-  e.preventDefault();
-  mensagem.textContent = "Verificando acesso...";
+function mostrarPainel(){
+  login.style.display = "none";
+  painel.style.display = "block";
+}
 
-  const {error} = await supabase.auth.signInWithPassword({
-    email:document.getElementById("email").value.trim(),
-    password:document.getElementById("senha").value
-  });
+async function verificarAdministrador(){
 
-  if(error){
-    mensagem.textContent = "E-mail ou senha incorretos.";
+  try {
+
+    const {data: sessaoData, error: sessaoErro} =
+      await supabase.auth.getUser();
+
+    if(sessaoErro){
+      throw sessaoErro;
+    }
+
+    const user = sessaoData.user;
+
+    if(!user){
+      mostrarLogin();
+      return;
+    }
+
+    const {data,error} = await supabase
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id",user.id)
+      .maybeSingle();
+
+    if(error){
+      throw error;
+    }
+
+    if(!data){
+      await supabase.auth.signOut();
+      mostrarLogin();
+      avisar("Esta conta não está cadastrada como administradora.");
+      return;
+    }
+
+    mostrarPainel();
+    avisar("Acesso autorizado.");
+
+    await carregarAgendamentos();
+
+  } catch(error) {
+
+    console.error("Erro ao verificar administrador:",error);
+
+    mostrarLogin();
+
+    avisar("Erro ao verificar acesso: " + error.message);
+
+  }
+}
+
+formulario.addEventListener("submit",async(event)=>{
+
+  event.preventDefault();
+
+  if(!supabase){
+    avisar("Não foi possível conectar ao Supabase. Atualize a página.");
     return;
   }
 
-  mensagem.textContent = "";
-  await verificarAdministrador();
+  const email = document.getElementById("email").value.trim();
+  const senha = document.getElementById("senha").value;
+
+  botaoEntrar.disabled = true;
+  botaoEntrar.textContent = "Verificando...";
+  avisar("Verificando acesso...");
+
+  try {
+
+    const {data,error} = await supabase.auth.signInWithPassword({
+      email:email,
+      password:senha
+    });
+
+    if(error){
+      throw error;
+    }
+
+    if(!data.user){
+      throw new Error("O Supabase não retornou um usuário.");
+    }
+
+    await verificarAdministrador();
+
+  } catch(error) {
+
+    console.error("Erro no login:",error);
+
+    avisar("Falha no login: " + error.message);
+
+  } finally {
+
+    botaoEntrar.disabled = false;
+    botaoEntrar.textContent = "Entrar";
+
+  }
+
 });
 
 async function carregarAgendamentos(){
-  lista.innerHTML = "Carregando...";
 
-  const inicio = document.getElementById("inicio").value;
-  const fim = document.getElementById("fim").value;
+  lista.textContent = "Carregando agendamentos...";
 
-  const {data,error} = await supabase
-    .from("appointments")
-    .select("id,customer_name,appointment_date,appointment_time,status")
-    .gte("appointment_date",inicio)
-    .lte("appointment_date",fim)
-    .order("appointment_date",{ascending:true})
-    .order("appointment_time",{ascending:true});
+  const inicio = inicioInput.value;
+  const fim = fimInput.value;
 
-  if(error){
-    lista.textContent = "Erro ao carregar agendamentos.";
+  if(!inicio || !fim || inicio > fim){
+    lista.textContent = "Informe um período válido.";
     return;
   }
 
-  lista.innerHTML = "";
+  try {
 
-  if(!data || data.length===0){
-    lista.textContent = "Nenhum agendamento encontrado nesse período.";
-    return;
-  }
+    const {data,error} = await supabase
+      .from("appointments")
+      .select("id,customer_name,appointment_date,appointment_time,status")
+      .gte("appointment_date",inicio)
+      .lte("appointment_date",fim)
+      .order("appointment_date",{ascending:true})
+      .order("appointment_time",{ascending:true});
 
-  data.forEach(item=>{
-    const card = document.createElement("div");
-    card.className = "item";
+    if(error){
+      throw error;
+    }
 
-    const [ano,mes,dia] = item.appointment_date.split("-");
-    const dataFormatada = `${dia}/${mes}/${ano}`;
-    const hora = String(item.appointment_time).slice(0,5);
+    lista.innerHTML = "";
 
-    const titulo = document.createElement("h3");
-    titulo.textContent = item.customer_name;
+    if(!data || data.length === 0){
+      lista.textContent = "Nenhum agendamento encontrado nesse período.";
+      return;
+    }
 
-    const info = document.createElement("p");
-    info.textContent = `${dataFormatada} às ${hora}`;
+    data.forEach(item=>{
 
-    const status = document.createElement("p");
-    status.className = "status";
-    status.textContent = "Status: " + item.status;
+      const card = document.createElement("div");
+      card.className = "item";
 
-    const seletor = document.createElement("select");
-    ["pending","confirmed","completed","cancelled"].forEach(valor=>{
-      const op = document.createElement("option");
-      op.value = valor;
-      op.textContent = {
+      const [ano,mes,dia] = item.appointment_date.split("-");
+      const dataFormatada = `${dia}/${mes}/${ano}`;
+      const hora = String(item.appointment_time).slice(0,5);
+
+      const titulo = document.createElement("h3");
+      titulo.textContent = item.customer_name;
+
+      const info = document.createElement("p");
+      info.textContent = `${dataFormatada} às ${hora}`;
+
+      const status = document.createElement("p");
+      status.className = "status";
+      status.textContent = "Status: " + item.status;
+
+      const seletor = document.createElement("select");
+
+      const statusNomes = {
         pending:"Pendente",
         confirmed:"Confirmado",
         completed:"Concluído",
         cancelled:"Cancelado"
-      }[valor];
-      seletor.appendChild(op);
+      };
+
+      Object.entries(statusNomes).forEach(([valor,nome])=>{
+        const op = document.createElement("option");
+        op.value = valor;
+        op.textContent = nome;
+        seletor.appendChild(op);
+      });
+
+      seletor.value = item.status;
+
+      const salvar = document.createElement("button");
+      salvar.type = "button";
+      salvar.textContent = "Salvar status";
+
+      salvar.addEventListener("click",async()=>{
+
+        salvar.disabled = true;
+        salvar.textContent = "Salvando...";
+
+        try {
+
+          const {error} = await supabase
+            .from("appointments")
+            .update({status:seletor.value})
+            .eq("id",item.id);
+
+          if(error){
+            throw error;
+          }
+
+          avisar("Status atualizado com sucesso.");
+
+          await carregarAgendamentos();
+
+        } catch(error) {
+
+          console.error("Erro ao atualizar:",error);
+          avisar("Erro ao atualizar status: " + error.message);
+
+        } finally {
+
+          salvar.disabled = false;
+          salvar.textContent = "Salvar status";
+
+        }
+
+      });
+
+      card.append(titulo,info,status,seletor,salvar);
+      lista.appendChild(card);
+
     });
-    seletor.value = item.status;
 
-    const salvar = document.createElement("button");
-    salvar.textContent = "Salvar status";
-    salvar.addEventListener("click",async()=>{
-      salvar.disabled = true;
-      const {error} = await supabase
-        .from("appointments")
-        .update({status:seletor.value})
-        .eq("id",item.id);
+  } catch(error) {
 
-      if(error){
-        mensagem.textContent = "Não foi possível atualizar o agendamento.";
-      }else{
-        mensagem.textContent = "Status atualizado.";
-        await carregarAgendamentos();
-      }
-      salvar.disabled = false;
-    });
+    console.error("Erro ao carregar agenda:",error);
 
-    card.append(titulo,info,status,seletor,salvar);
-    lista.appendChild(card);
-  });
+    lista.textContent = "Erro ao carregar: " + error.message;
+
+  }
 }
 
-document.getElementById("atualizar").addEventListener("click",carregarAgendamentos);
+document.getElementById("atualizar")
+.addEventListener("click",carregarAgendamentos);
 
-document.getElementById("sair").addEventListener("click",async()=>{
-  await supabase.auth.signOut();
-  painel.style.display = "none";
-  login.style.display = "block";
-  mensagem.textContent = "Você saiu do painel.";
+document.getElementById("sair")
+.addEventListener("click",async()=>{
+
+  try {
+
+    const {error} = await supabase.auth.signOut();
+
+    if(error){
+      throw error;
+    }
+
+    mostrarLogin();
+    lista.innerHTML = "";
+    avisar("Você saiu do painel.");
+
+  } catch(error) {
+
+    avisar("Erro ao sair: " + error.message);
+
+  }
+
 });
 
-verificarAdministrador();
+try {
+
+  if(!window.supabase || !window.supabase.createClient){
+    throw new Error("Biblioteca do Supabase não carregada.");
+  }
+
+  supabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+  verificarAdministrador();
+
+} catch(error) {
+
+  console.error("Erro de inicialização:",error);
+  avisar("Erro ao iniciar o sistema: " + error.message);
+
+}
 </script>
+
 </body>
 </html>
