@@ -5,7 +5,9 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Agendar atendimento | Dr. Roque Campos</title>
+
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
 <style>
 *{box-sizing:border-box}
 body{margin:0;background:#171717;color:#eee;font-family:Arial,sans-serif;padding:25px 15px}
@@ -20,17 +22,20 @@ button:disabled{opacity:.5}
 small{display:block;color:#aaa;text-align:center;margin-top:18px;line-height:1.5}
 </style>
 </head>
+
 <body>
 <main>
 <h1>Dr. Roque Campos</h1>
 <p>Agendamento de atendimento</p>
 
 <form id="form">
+
 <label for="nome">Seu nome completo</label>
 <input id="nome" type="text" maxlength="100" required minlength="2" placeholder="Digite seu nome">
 
 <label for="data">Escolha a data</label>
 <input id="data" type="date" required>
+
 <label for="horario">Horários disponíveis</label>
 <select id="horario" required>
 <option value="">Selecione primeiro uma data</option>
@@ -40,35 +45,65 @@ small{display:block;color:#aaa;text-align:center;margin-top:18px;line-height:1.5
 </form>
 
 <div id="mensagem"></div>
+
 <small>O pedido será registrado como pendente. A confirmação será feita pelo escritório.</small>
 </main>
 
 <script>
 const SUPABASE_URL = "https://lnavvnmuqlhetnovwyxr.supabase.co";
 const SUPABASE_KEY = "sb_publishable_ncPMZ-VLgvvt7djIA0tb-Q_r_3A6Isz";
-const supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
 const telefone = "5579991379843";
+
 const dataInput = document.getElementById("data");
 const horarioInput = document.getElementById("horario");
 const mensagem = document.getElementById("mensagem");
 const botao = document.getElementById("botao");
+const formulario = document.getElementById("form");
+
+let clienteSupabase = null;
 
 function dataLocal(){
   const agora = new Date();
   const ano = agora.getFullYear();
   const mes = String(agora.getMonth()+1).padStart(2,"0");
   const dia = String(agora.getDate()).padStart(2,"0");
+
   return `${ano}-${mes}-${dia}`;
 }
 
 dataInput.min = dataLocal();
 
+try {
+  if(!window.supabase || !window.supabase.createClient){
+    throw new Error("A biblioteca do Supabase não carregou.");
+  }
+
+  clienteSupabase = window.supabase.createClient(
+    SUPABASE_URL,
+    SUPABASE_KEY
+  );
+
+} catch(error) {
+  console.error("Erro ao iniciar Supabase:", error);
+  mensagem.textContent = "Erro ao conectar com o sistema. Atualize a página.";
+}
+
 async function carregarHorarios(){
+
   const data = dataInput.value;
+
   horarioInput.innerHTML = "";
 
-  if(!data) return;
+  if(!data){
+    horarioInput.innerHTML = '<option value="">Selecione primeiro uma data</option>';
+    return;
+  }
+
+  if(!clienteSupabase){
+    horarioInput.innerHTML = '<option value="">Sistema indisponível</option>';
+    return;
+  }
 
   const diaSemana = new Date(data + "T12:00:00").getDay();
 
@@ -77,60 +112,88 @@ async function carregarHorarios(){
     return;
   }
 
-  horarioInput.innerHTML = '<option value="">Carregando horários...</option>';
+  horarioInput.innerHTML = '<option value="">Consultando horários...</option>';
+  mensagem.textContent = "";
 
-  const {data:ocupados,error} = await supabase.rpc("get_booked_slots",{
-    p_start:data,
-    p_end:data
-  });
+  try {
 
-  if(error){
-    horarioInput.innerHTML = '<option value="">Erro ao consultar horários</option>';
-    mensagem.textContent = "Não foi possível consultar a agenda. Tente novamente.";
-    return;
-  }
+    const resposta = await clienteSupabase.rpc("get_booked_slots",{
+      p_start:data,
+      p_end:data
+    });
 
-  const horarios = ["08:00","09:30","14:00","15:30"];
-  const ocupadosSet = new Set(
-    (ocupados || []).map(item => String(item.appointment_time).slice(0,5))
-  );
-
-  const agora = new Date();
-
-  horarios.forEach(hora=>{
-    const [h,m] = hora.split(":").map(Number);
-    const horarioData = new Date(data + "T00:00:00");
-    horarioData.setHours(h,m,0,0);
-
-    const opcao = document.createElement("option");
-    opcao.value = hora;
-
-    if(ocupadosSet.has(hora)){
-      opcao.textContent = hora + " — indisponível";
-      opcao.disabled = true;
-    }else if(horarioData <= agora){
-      opcao.textContent = hora + " — horário passado";
-      opcao.disabled = true;
-    }else{
-      opcao.textContent = hora;
+    if(resposta.error){
+      throw resposta.error;
     }
 
-    horarioInput.appendChild(opcao);
-  });
+    const ocupados = resposta.data || [];
 
-  if(!horarioInput.querySelector('option:not(:disabled)')){
-    horarioInput.innerHTML = '<option value="">Não há horários disponíveis</option>';
+    const ocupadosSet = new Set(
+      ocupados.map(item =>
+        String(item.appointment_time).slice(0,5)
+      )
+    );
+
+    const horarios = ["08:00","09:30","14:00","15:30"];
+
+    const agora = new Date();
+
+    horarioInput.innerHTML = '<option value="">Escolha um horário</option>';
+
+    horarios.forEach(hora => {
+
+      const [h,m] = hora.split(":").map(Number);
+
+      const horarioData = new Date(data + "T00:00:00");
+      horarioData.setHours(h,m,0,0);
+
+      const opcao = document.createElement("option");
+
+      opcao.value = hora;
+
+      if(ocupadosSet.has(hora)){
+
+        opcao.textContent = hora + " — indisponível";
+        opcao.disabled = true;
+
+      }else if(horarioData <= agora){
+
+        opcao.textContent = hora + " — horário passado";
+        opcao.disabled = true;
+
+      }else{
+
+        opcao.textContent = hora;
+
+      }
+
+      horarioInput.appendChild(opcao);
+
+    });
+
+    const disponiveis = Array.from(horarioInput.options).some(
+      opcao => opcao.value !== "" && !opcao.disabled
+    );
+
+    if(!disponiveis){
+      horarioInput.innerHTML = '<option value="">Não há horários disponíveis</option>';
+    }
+
+  } catch(error) {
+
+    console.error("Erro ao consultar horários:", error);
+
+    horarioInput.innerHTML = '<option value="">Erro ao consultar horários</option>';
+
+    mensagem.textContent = "Falha na consulta: " + (error.message || "verifique a conexão com a agenda.");
+
   }
-
-  mensagem.textContent = "";
 }
 
-dataInput.addEventListener("change", () => carregarHorarios());
-dataInput.addEventListener("input", () => carregarHorarios());
-dataInput.onchange = () => carregarHorarios();
-dataInput.addEventListener("input", carregarHorarios);
+dataInput.addEventListener("change", carregarHorarios);
 
-document.getElementById("form").addEventListener("submit",async(event)=>{
+formulario.addEventListener("submit", async(event)=>{
+
   event.preventDefault();
 
   const nome = document.getElementById("nome").value.trim();
@@ -138,7 +201,12 @@ document.getElementById("form").addEventListener("submit",async(event)=>{
   const horario = horarioInput.value;
 
   if(!nome || !data || !horario){
-    mensagem.textContent = "Preencha todos os campos.";
+    mensagem.textContent = "Preencha todos os campos e escolha um horário.";
+    return;
+  }
+
+  if(!clienteSupabase){
+    mensagem.textContent = "Sistema indisponível. Atualize a página.";
     return;
   }
 
@@ -146,27 +214,41 @@ document.getElementById("form").addEventListener("submit",async(event)=>{
   botao.textContent = "Registrando agendamento...";
   mensagem.textContent = "";
 
-  const {error} = await supabase.rpc("book_appointment",{
-    p_name:nome,
-    p_date:data,
-    p_time:horario
-  });
+  try {
 
-  if(error){
+    const {error} = await clienteSupabase.rpc("book_appointment",{
+      p_name:nome,
+      p_date:data,
+      p_time:horario
+    });
+
+    if(error){
+      throw error;
+    }
+
+    const [ano,mes,dia] = data.split("-");
+
+    const dataFormatada = `${dia}/${mes}/${ano}`;
+
+    const texto = `Olá, Dr. Roque! Meu nome é ${nome}. Solicitei um agendamento para ${dataFormatada}, às ${horario}. Gostaria de conversar sobre um atendimento. Aguardo a confirmação.`;
+
+    window.location.href = `https://wa.me/${telefone}?text=${encodeURIComponent(texto)}`;
+
+  } catch(error) {
+
+    console.error("Erro ao registrar agendamento:", error);
+
     mensagem.textContent = error.message || "Não foi possível registrar. Escolha outro horário.";
+
     botao.disabled = false;
     botao.textContent = "Continuar pelo WhatsApp";
+
     await carregarHorarios();
-    return;
+
   }
 
-  const [ano,mes,dia] = data.split("-");
-  const dataFormatada = `${dia}/${mes}/${ano}`;
-
-  const texto = `Olá, Dr. Roque! Meu nome é ${nome}. Solicitei um agendamento para ${dataFormatada}, às ${horario}. Gostaria de conversar sobre um atendimento. Aguardo a confirmação.`;
-
-  window.location.href = `https://wa.me/${telefone}?text=${encodeURIComponent(texto)}`;
 });
 </script>
+
 </body>
 </html>
