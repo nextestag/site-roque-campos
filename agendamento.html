@@ -125,7 +125,9 @@ async function carregarHorarios(){
   mensagem.textContent = "";
 }
 
-dataInput.addEventListener("change", carregarHorarios);
+dataInput.addEventListener("change", () => carregarHorarios());
+dataInput.addEventListener("input", () => carregarHorarios());
+dataInput.onchange = () => carregarHorarios();
 dataInput.addEventListener("input", carregarHorarios);
 
 document.getElementById("form").addEventListener("submit",async(event)=>{
