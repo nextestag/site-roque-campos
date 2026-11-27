@@ -1,0 +1,563 @@
+
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#171717">
+<title>Painel administrativo | Dr. Roque Campos</title>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+
+<style>
+:root {
+  --bg:#151515;
+  --surface:#202020;
+  --surface2:#292929;
+  --gold:#c9aa68;
+  --gold-dark:#80683b;
+  --text:#f2f0eb;
+  --muted:#aaa49a;
+  --border:#49402e;
+  --green:#65c58a;
+  --red:#e47d7d;
+  --blue:#82b9e8;
+  --orange:#e6b66b;
+}
+*{box-sizing:border-box}
+body{
+  margin:0;padding:18px;background:var(--bg);
+  color:var(--text);font-family:Arial,Helvetica,sans-serif
+}
+main{width:100%;max-width:1100px;margin:0 auto}
+header{padding:15px 0 22px;border-bottom:1px solid var(--border);margin-bottom:22px}
+.marca{color:var(--gold);font-size:13px;letter-spacing:2px;text-transform:uppercase;margin-bottom:8px}
+h1{font-size:clamp(24px,5vw,34px);margin:0}
+.subtitulo{color:var(--muted);margin:8px 0 0;font-size:14px}
+h2{color:var(--gold);font-size:19px;margin:0 0 18px}
+section{background:var(--surface);border:1px solid var(--border);border-radius:13px;padding:20px;margin-bottom:20px}
+label{display:block;color:var(--muted);font-size:13px;margin:10px 0 6px}
+input,select{
+  width:100%;min-height:44px;padding:11px 12px;border-radius:7px;
+  border:1px solid var(--border);background:#171717;color:var(--text);font-size:15px
+}
+button{
+  min-height:43px;padding:11px 16px;border:0;border-radius:7px;
+  background:var(--gold);color:#171717;font-size:14px;font-weight:bold;cursor:pointer
+}
+button:disabled{opacity:.55;cursor:wait}
+button.secundario{background:#343434;border:1px solid var(--border);color:var(--text)}
+button.sair{background:transparent;color:var(--gold);border:1px solid var(--gold-dark)}
+.acoes{display:flex;flex-wrap:wrap;gap:9px;margin-top:15px}
+#painel{display:none}
+#mensagem{min-height:22px;margin:12px 2px;color:var(--gold);font-size:14px;overflow-wrap:anywhere}
+.grade-contadores{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:12px;margin-bottom:20px}
+.contador{background:var(--surface);border:1px solid var(--border);border-radius:11px;padding:16px;min-width:0}
+.contador span{display:block;color:var(--muted);font-size:12px;margin-bottom:9px}
+.contador strong{display:block;color:var(--gold);font-size:28px}
+.contador.pendente strong{color:var(--orange)}
+.contador.confirmado strong{color:var(--green)}
+.contador.concluido strong{color:var(--blue)}
+.contador.cancelado strong{color:var(--red)}
+.filtros{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.filtros .campo-filtro{min-width:0}
+.filtros .campo-filtro:last-child{grid-column:1/-1}
+.item{background:var(--surface2);border:1px solid var(--border);border-radius:10px;padding:16px;margin:12px 0}
+.item.hoje{border:1px solid var(--gold);box-shadow:0 0 0 1px rgba(201,170,104,.12)}
+.item-topo{display:flex;justify-content:space-between;align-items:flex-start;gap:12px;flex-wrap:wrap}
+.item h3{margin:0 0 8px;font-size:17px;overflow-wrap:anywhere}
+.item p{color:var(--muted);margin:7px 0;font-size:14px;line-height:1.5}
+.selo{display:inline-block;padding:6px 9px;border-radius:20px;font-size:11px;font-weight:bold;background:#393939;color:var(--text)}
+.selo-pending{color:var(--orange);border:1px solid #8a6736}
+.selo-confirmed{color:var(--green);border:1px solid #39744d}
+.selo-completed{color:var(--blue);border:1px solid #426d91}
+.selo-cancelled{color:var(--red);border:1px solid #8b4545}
+.hoje-texto{color:var(--gold)!important;font-size:12px!important;font-weight:bold;letter-spacing:.5px}
+.controles-status{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:9px;align-items:end;margin-top:14px}
+.controles-status select{margin:0}
+.controles-status button{white-space:nowrap}
+.vazio{padding:25px 12px;text-align:center;color:var(--muted);background:var(--surface2);border-radius:9px;line-height:1.6}
+#login{max-width:480px;margin:35px auto}
+#login button{width:100%;margin-top:10px}
+#login input{margin-bottom:10px}
+.cabecalho-agenda{display:flex;justify-content:space-between;align-items:center;gap:12px;flex-wrap:wrap;margin-bottom:15px}
+.cabecalho-agenda h2{margin:0}
+.legenda{color:var(--muted);font-size:12px;line-height:1.6;margin-top:14px}
+@media(max-width:700px){
+  body{padding:12px}
+  section{padding:16px}
+  .grade-contadores{grid-template-columns:repeat(2,minmax(0,1fr));gap:9px}
+  .contador{padding:13px}
+  .contador strong{font-size:25px}
+  .filtros{grid-template-columns:1fr}
+  .filtros .campo-filtro:last-child{grid-column:auto}
+  .controles-status{grid-template-columns:1fr}
+  .controles-status button{width:100%}
+  .acoes button{flex:1}
+}
+</style>
+</head>
+
+<body>
+<main>
+<header>
+  <div class="marca">Dr. Roque Campos</div>
+  <h1>Painel administrativo</h1>
+  <p class="subtitulo">Gerenciamento de consultas e agendamentos</p>
+</header>
+
+<section id="login">
+  <h2>Acesso do administrador</h2>
+  <form id="formLogin" novalidate>
+    <label for="email">E-mail</label>
+    <input id="email" type="email" required autocomplete="username" placeholder="Digite seu e-mail">
+    <label for="senha">Senha</label>
+    <input id="senha" type="password" required autocomplete="current-password" placeholder="Digite sua senha">
+    <button id="entrar" type="submit">Entrar no painel</button>
+  </form>
+</section>
+
+<div id="painel">
+  <div class="grade-contadores">
+    <div class="contador pendente">
+      <span>Pendentes</span><strong id="totalPendentes">0</strong>
+    </div>
+    <div class="contador confirmado">
+      <span>Confirmados</span><strong id="totalConfirmados">0</strong>
+    </div>
+    <div class="contador concluido">
+      <span>Concluídos</span><strong id="totalConcluidos">0</strong>
+    </div>
+    <div class="contador cancelado">
+      <span>Cancelados</span><strong id="totalCancelados">0</strong>
+    </div>
+  </div>
+
+  <section>
+    <div class="cabecalho-agenda">
+      <h2>Agenda de atendimentos</h2>
+      <button id="sair" class="sair" type="button">Sair da conta</button>
+    </div>
+
+    <div class="filtros">
+      <div class="campo-filtro">
+        <label for="inicio">Data inicial</label>
+        <input id="inicio" type="date">
+      </div>
+      <div class="campo-filtro">
+        <label for="fim">Data final</label>
+        <input id="fim" type="date">
+      </div>
+      <div class="campo-filtro">
+        <label for="filtroStatus">Filtrar agendamentos</label>
+        <select id="filtroStatus">
+          <option value="active">Agenda principal — pendentes e confirmados</option>
+          <option value="pending">Somente pendentes</option>
+          <option value="confirmed">Somente confirmados</option>
+          <option value="completed">Histórico — concluídos</option>
+          <option value="cancelled">Histórico — cancelados</option>
+          <option value="all">Todos os agendamentos</option>
+        </select>
+      </div>
+    </div>
+
+    <div class="acoes">
+      <button id="atualizar" type="button">Atualizar agenda</button>
+      <button id="hoje" class="secundario" type="button">Ver próximos 30 dias</button>
+    </div>
+
+    <p class="legenda">
+      Os contadores mostram os registros encontrados no período selecionado.
+      Na agenda principal aparecem apenas os atendimentos pendentes e confirmados.
+      Concluídos e cancelados permanecem disponíveis no histórico.
+    </p>
+  </section>
+
+  <section>
+    <div class="cabecalho-agenda">
+      <h2 id="tituloLista">Agendamentos ativos</h2>
+    </div>
+    <div id="lista">
+      <div class="vazio">Carregando agendamentos...</div>
+    </div>
+  </section>
+</div>
+
+<div id="mensagem" role="status" aria-live="polite"></div>
+</main>
+
+<script>
+(() => {
+"use strict";
+
+const SUPABASE_URL = "https://lnavvnmuqlhetnovwyxr.supabase.co";
+const SUPABASE_KEY = "sb_publishable_ncPMZ-VLgvvt7djIA0tb-Q_r_3A6Isz";
+
+const login = document.getElementById("login");
+const painel = document.getElementById("painel");
+const mensagem = document.getElementById("mensagem");
+const formulario = document.getElementById("formLogin");
+const botaoEntrar = document.getElementById("entrar");
+const lista = document.getElementById("lista");
+const inicioInput = document.getElementById("inicio");
+const fimInput = document.getElementById("fim");
+const filtroStatus = document.getElementById("filtroStatus");
+
+let supabase = null;
+let agendamentos = [];
+
+const statusNomes = {
+  pending: "Pendente",
+  confirmed: "Confirmado",
+  completed: "Concluído",
+  cancelled: "Cancelado"
+};
+
+function avisar(texto) {
+  mensagem.textContent = texto;
+}
+
+function dataLocalISO(data) {
+  return data.getFullYear() + "-" +
+    String(data.getMonth() + 1).padStart(2, "0") + "-" +
+    String(data.getDate()).padStart(2, "0");
+}
+
+function hojeISO() {
+  return dataLocalISO(new Date());
+}
+
+function configurarPeriodo() {
+  const hoje = new Date();
+  const limite = new Date();
+  limite.setDate(limite.getDate() + 30);
+  inicioInput.value = dataLocalISO(hoje);
+  fimInput.value = dataLocalISO(limite);
+}
+
+function formatarData(data) {
+  if (!data) return "";
+  const partes = String(data).split("-");
+  if (partes.length !== 3) return data;
+  return `${partes[2]}/${partes[1]}/${partes[0]}`;
+}
+
+function mostrarLogin() {
+  login.style.display = "block";
+  painel.style.display = "none";
+}
+
+function mostrarPainel() {
+  login.style.display = "none";
+  painel.style.display = "block";
+}
+
+function atualizarContadores(dados) {
+  document.getElementById("totalPendentes").textContent =
+    dados.filter(item => item.status === "pending").length;
+  document.getElementById("totalConfirmados").textContent =
+    dados.filter(item => item.status === "confirmed").length;
+  document.getElementById("totalConcluidos").textContent =
+    dados.filter(item => item.status === "completed").length;
+  document.getElementById("totalCancelados").textContent =
+    dados.filter(item => item.status === "cancelled").length;
+}
+
+function criarOpcao(valor, nome, selecionado) {
+  const opcao = document.createElement("option");
+  opcao.value = valor;
+  opcao.textContent = nome;
+  opcao.selected = valor === selecionado;
+  return opcao;
+}
+
+function renderizarAgenda() {
+  const filtro = filtroStatus.value;
+
+  const titulos = {
+    active: "Agendamentos ativos",
+    pending: "Agendamentos pendentes",
+    confirmed: "Agendamentos confirmados",
+    completed: "Histórico de concluídos",
+    cancelled: "Histórico de cancelados",
+    all: "Todos os agendamentos"
+  };
+
+  document.getElementById("tituloLista").textContent =
+    titulos[filtro] || "Agendamentos";
+
+  let filtrados = agendamentos;
+
+  if (filtro === "active") {
+    filtrados = agendamentos.filter(item =>
+      item.status === "pending" || item.status === "confirmed"
+    );
+  } else if (filtro !== "all") {
+    filtrados = agendamentos.filter(item => item.status === filtro);
+  }
+
+  lista.innerHTML = "";
+
+  if (filtrados.length === 0) {
+    const vazio = document.createElement("div");
+    vazio.className = "vazio";
+
+    if (filtro === "active") {
+      vazio.textContent = "Não há atendimentos pendentes ou confirmados neste período.";
+    } else if (filtro === "completed" || filtro === "cancelled") {
+      vazio.textContent = "Não há registros neste histórico para o período selecionado.";
+    } else {
+      vazio.textContent = "Nenhum agendamento encontrado para este filtro.";
+    }
+
+    lista.appendChild(vazio);
+    return;
+  }
+
+  filtrados.forEach(item => {
+    const card = document.createElement("article");
+    card.className = "item";
+
+    const ehHoje = item.appointment_date === hojeISO();
+    if (ehHoje) card.classList.add("hoje");
+
+    const topo = document.createElement("div");
+    topo.className = "item-topo";
+
+    const informacoes = document.createElement("div");
+    const nome = document.createElement("h3");
+    nome.textContent = item.customer_name || "Cliente sem nome";
+
+    const dataHora = document.createElement("p");
+    const hora = String(item.appointment_time || "").slice(0, 5);
+    dataHora.textContent = `${formatarData(item.appointment_date)} às ${hora}`;
+
+    informacoes.append(nome, dataHora);
+
+    const selo = document.createElement("span");
+    selo.className = `selo selo-${item.status}`;
+    selo.textContent = statusNomes[item.status] || item.status;
+
+    topo.append(informacoes, selo);
+    card.appendChild(topo);
+
+    if (ehHoje) {
+      const destaque = document.createElement("p");
+      destaque.className = "hoje-texto";
+      destaque.textContent = "ATENDIMENTO DE HOJE";
+      card.appendChild(destaque);
+    }
+
+    const controles = document.createElement("div");
+    controles.className = "controles-status";
+
+    const seletor = document.createElement("select");
+    seletor.setAttribute(
+      "aria-label",
+      "Alterar status do atendimento de " + (item.customer_name || "cliente")
+    );
+
+    Object.entries(statusNomes).forEach(([valor, nomeStatus]) => {
+      seletor.appendChild(criarOpcao(valor, nomeStatus, item.status));
+    });
+
+    const salvar = document.createElement("button");
+    salvar.type = "button";
+    salvar.textContent = "Salvar alteração";
+
+    salvar.addEventListener("click", async () => {
+      const novoStatus = seletor.value;
+
+      if (novoStatus === item.status) {
+        avisar("Esse atendimento já está com esse status.");
+        return;
+      }
+
+      salvar.disabled = true;
+      seletor.disabled = true;
+      salvar.textContent = "Salvando...";
+
+      try {
+        const { error } = await supabase
+          .from("appointments")
+          .update({ status: novoStatus })
+          .eq("id", item.id);
+
+        if (error) throw error;
+
+        avisar("Status alterado para " + statusNomes[novoStatus] + ".");
+        await carregarAgendamentos();
+
+      } catch (error) {
+        console.error("Erro ao atualizar status:", error);
+        avisar("Erro ao atualizar status: " + error.message);
+      } finally {
+        salvar.disabled = false;
+        seletor.disabled = false;
+        salvar.textContent = "Salvar alteração";
+      }
+    });
+
+    controles.append(seletor, salvar);
+    card.appendChild(controles);
+    lista.appendChild(card);
+  });
+}
+
+async function carregarAgendamentos() {
+  const inicio = inicioInput.value;
+  const fim = fimInput.value;
+
+  if (!inicio || !fim || inicio > fim) {
+    avisar("Informe um período válido.");
+    return;
+  }
+
+  lista.innerHTML = '<div class="vazio">Carregando agendamentos...</div>';
+
+  try {
+    const { data, error } = await supabase
+      .from("appointments")
+      .select("id,customer_name,appointment_date,appointment_time,status")
+      .gte("appointment_date", inicio)
+      .lte("appointment_date", fim)
+      .order("appointment_date", { ascending: true })
+      .order("appointment_time", { ascending: true });
+
+    if (error) throw error;
+
+    agendamentos = data || [];
+    atualizarContadores(agendamentos);
+    renderizarAgenda();
+
+  } catch (error) {
+    console.error("Erro ao carregar agendamentos:", error);
+    lista.innerHTML = "";
+
+    const erro = document.createElement("div");
+    erro.className = "vazio";
+    erro.textContent = "Não foi possível carregar a agenda: " + error.message;
+    lista.appendChild(erro);
+
+    avisar("Verifique sua conexão e tente atualizar a agenda.");
+  }
+}
+
+async function verificarAdministrador() {
+  try {
+    const { data: sessaoData, error: sessaoErro } =
+      await supabase.auth.getUser();
+
+    if (sessaoErro) throw sessaoErro;
+
+    const user = sessaoData.user;
+    if (!user) {
+      mostrarLogin();
+      return;
+    }
+
+    const { data, error } = await supabase
+      .from("admin_users")
+      .select("user_id")
+      .eq("user_id", user.id)
+      .maybeSingle();
+
+    if (error) throw error;
+
+    if (!data) {
+      await supabase.auth.signOut();
+      mostrarLogin();
+      avisar("Esta conta não está cadastrada como administradora.");
+      return;
+    }
+
+    mostrarPainel();
+    avisar("Acesso autorizado.");
+    await carregarAgendamentos();
+
+  } catch (error) {
+    console.error("Erro ao verificar administrador:", error);
+    mostrarLogin();
+    avisar("Erro ao verificar acesso: " + error.message);
+  }
+}
+
+formulario.addEventListener("submit", async event => {
+  event.preventDefault();
+
+  const email = document.getElementById("email").value.trim();
+  const senha = document.getElementById("senha").value;
+
+  if (!email || !senha) {
+    avisar("Preencha o e-mail e a senha.");
+    return;
+  }
+
+  botaoEntrar.disabled = true;
+  botaoEntrar.textContent = "Verificando...";
+
+  try {
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password: senha
+    });
+
+    if (error) throw error;
+    if (!data.user) throw new Error("Usuário não retornado pelo Supabase.");
+
+    await verificarAdministrador();
+
+  } catch (error) {
+    console.error("Erro no login:", error);
+    avisar("Falha no login: " + error.message);
+  } finally {
+    botaoEntrar.disabled = false;
+    botaoEntrar.textContent = "Entrar no painel";
+  }
+});
+
+document.getElementById("atualizar").addEventListener(
+  "click",
+  carregarAgendamentos
+);
+
+document.getElementById("hoje").addEventListener("click", () => {
+  configurarPeriodo();
+  carregarAgendamentos();
+});
+
+filtroStatus.addEventListener("change", renderizarAgenda);
+
+document.getElementById("sair").addEventListener("click", async () => {
+  try {
+    const { error } = await supabase.auth.signOut();
+    if (error) throw error;
+
+    agendamentos = [];
+    lista.innerHTML = "";
+    mostrarLogin();
+    avisar("Você saiu do painel.");
+
+  } catch (error) {
+    avisar("Erro ao sair: " + error.message);
+  }
+});
+
+try {
+  if (!window.supabase || !window.supabase.createClient) {
+    throw new Error("Biblioteca do Supabase não carregada.");
+  }
+
+  supabase = window.supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+  configurarPeriodo();
+  avisar("Sistema iniciado. Faça seu login.");
+  verificarAdministrador();
+
+} catch (error) {
+  console.error("Erro ao iniciar o sistema:", error);
+  avisar("Erro ao iniciar o sistema: " + error.message);
+}
+
+})();
+</script>
+</body>
+</html>
