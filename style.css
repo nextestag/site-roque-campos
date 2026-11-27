@@ -170,21 +170,18 @@ a{color:inherit;text-decoration:none}
 .button{padding:14px 16px}
 }
 
+
 /* =========================================
-   BORDAS DOURADAS EM TODOS OS ITENS DO MENU
-   CELULAR E COMPUTADOR
+   BORDA DOURADA EM TODOS OS BOTÕES DO MENU
+   COMPUTADOR E CELULAR
 ========================================= */
 
-@media (min-width: 0px) {
-  .nav-links a,
-  .nav-links button {
+.main-nav a {
     border: 1px solid #c9a45c !important;
-    border-radius: 6px;
+    border-radius: 6px !important;
     box-sizing: border-box;
-  }
+}
 
-  .nav-links a:hover,
-  .nav-links button:hover {
+.main-nav a:hover {
     border-color: #e0bd76 !important;
-  }
 }
