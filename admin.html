@@ -34,7 +34,7 @@ button:disabled{opacity:.5;cursor:wait}
 <section id="login">
 <h2>Acesso do administrador</h2>
 
-<form id="formLogin">
+<form id="formLogin" onsubmit="document.getElementById('mensagem').textContent='O formulário foi enviado!';">
 <label>E-mail</label>
 <input id="email" type="email" required autocomplete="username">
 
